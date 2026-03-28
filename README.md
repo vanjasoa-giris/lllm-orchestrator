@@ -1,47 +1,60 @@
 # Load Balancing LLM - Projet Test Local
 
-## 🚀 Quick Start avec Docker (Recommandé)
+Ce projet implémente un système de load balancing pour l'inférence de modèles de langage (LLM).
 
-### Prérequis
-- Docker Desktop installé et en cours d'exécution
-- Aucune autre installation nécessaire (tout est inclus dans les containers)
+---
 
-### Étape 1 : Démarrer tous les services
+## Lancer la simulation
 
-**Windows (PowerShell ou CMD) :**
-```bash
-start_docker.bat
-```
-
-**Linux / Mac :**
-```bash
-docker-compose build
-docker-compose up -d
-```
-
-### Étape 2 : Attendre le démarrage (10 secondes)
+### Étape 1 : Construire le projet
 
 ```bash
-# Windows
-timeout /t 10
-
-# Linux / Mac
-sleep 10
+docker-compose -f docker-compose.v2.yml build
 ```
 
-### Étape 3 : Vérifier que tout fonctionne
+### Étape 2 : Démarrer tous les services
 
 ```bash
-docker-compose ps
+docker-compose -f docker-compose.v2.yml up -d
 ```
 
-Doit afficher 4 containers en état "running" :
-- `llm-worker-m1`
-- `llm-worker-m2`
-- `llm-worker-m3`
+### Étape 3 : Attendre le démarrage (15 secondes)
+
+```bash
+sleep 15
+```
+
+### Étape 4 : Vérifier que tout fonctionne
+
+```bash
+docker-compose -f docker-compose.v2.yml ps
+```
+
+Doit afficher 8 services en cours d'exécution :
+- `llm-rabbitmq`
+- `llm-worker-m1`, `llm-worker-m2`, `llm-worker-m3`
 - `llm-orchestrator`
+- `llm-prometheus`
+- `llm-grafana`
+- `llm-load-simulator`
 
-### Étape 4 : Tester avec une requête
+---
+
+## Voir le dashboard
+
+Ouvrez dans votre navigateur : **http://localhost:8000**
+
+Autres interfaces disponibles :
+| Service | URL | Identifiants |
+|---------|-----|--------------|
+| **Dashboard** | http://localhost:8000 | - |
+| Grafana | http://localhost:3000 | admin / admin |
+| Prometheus | http://localhost:9090 | - |
+| RabbitMQ | http://localhost:15672 | guest / guest |
+
+---
+
+## Tester manuellement
 
 ```bash
 curl -X POST http://localhost:8000/infer \
@@ -49,129 +62,41 @@ curl -X POST http://localhost:8000/infer \
   -d '{"prompt": "Bonjour", "max_tokens": 50}'
 ```
 
-### Étape 5 : Ouvrir le Dashboard
-
-Accédez à : **http://localhost:8000**
-
 ---
 
-## 🛑 Arrêter les services
+## Arrêter la simulation
 
-**Windows :**
 ```bash
-stop_docker.bat
-```
-
-**Linux / Mac :**
-```bash
-docker-compose down
+docker-compose -f docker-compose.v2.yml down
 ```
 
 ---
 
-## 📊 URLs des Services
-
-| Service | URL | Description |
-|---------|-----|-------------|
-| **Orchestrateur** | http://localhost:8000 | Load Balancer + Dashboard |
-| Dashboard | http://localhost:8000/ | Interface Web temps réel |
-| Stats | http://localhost:8000/stats | Métriques JSON |
-| Health | http://localhost:8000/health | État de santé |
-| **Worker M1** | http://localhost:8001 | Instance LLM 1 |
-| **Worker M2** | http://localhost:8002 | Instance LLM 2 |
-| **Worker M3** | http://localhost:8003 | Instance LLM 3 |
-
----
-
-## 📋 Commandes Utiles
+## Commandes utiles
 
 ```bash
-# Voir les logs en temps réel
-docker-compose logs -f
+# Logs du simulateur de charge
+docker logs -f llm-load-simulator
 
-# Logs d'un service spécifique
-docker-compose logs -f orchestrator
-docker-compose logs -f worker-m1
+# Logs de l'orchestrateur
+docker logs -f llm-orchestrator
 
 # Redémarrer un service
-docker-compose restart orchestrator
+docker-compose -f docker-compose.v2.yml restart orchestrator
 
 # Reconstruire sans cache
-docker-compose build --no-cache
-
-# Exécuter une commande dans un container
-docker exec -it llm-orchestrator bash
+docker-compose -f docker-compose.v2.yml build --no-cache
 ```
 
 ---
-
-## Installation Locale (Alternative)
-
-```bash
-pip install -r requirements.txt
-```
-
-## Lancement Manuel (Sans Docker)
-
-### Terminal 1 - Worker M1
-```bash
-python worker/main.py --port 8001 --id M1
-```
-
-### Terminal 2 - Worker M2
-```bash
-python worker/main.py --port 8002 --id M2
-```
-
-### Terminal 3 - Worker M3
-```bash
-python worker/main.py --port 8003 --id M3
-```
-
-### Terminal 4 - Orchestrateur
-```bash
-python orchestrator/main.py
-```
-
-## API Endpoints
-
-| Service | Endpoint | Description |
-|---------|----------|-------------|
-| Orchestrateur | `POST /infer` | Envoyer une requête |
-| Orchestrateur | `GET /health` | État de santé |
-| Orchestrateur | `GET /stats` | Métriques |
-| Worker | `GET /health` | Healthcheck worker |
-| Worker | `GET /metrics` | Métriques worker |
-
-## Test
-
-```bash
-pytest tests/ -v
-```
-
-## Exemple de requête
-
-```bash
-curl -X POST http://localhost:8000/infer \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Bonjour", "max_tokens": 50}'
-```
 
 ## Structure du projet
 
 ```
-├── orchestrator/
-│   └── main.py          # Load Balancer
-├── worker/
-│   └── main.py          # Worker LLM
-├── config/
-│   └── workers.yaml     # Configuration
-├── tests/
-│   ├── test_load_balancer.py
-│   └── test_integration.py
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── STRATEGY.md
-│   └── RESILIENCE.md
+├── orchestrator/          # Load Balancer
+├── worker/                # Workers LLM
+├── config/                # Configuration
+├── docker-compose.yml     # Version simple
+├── docker-compose.v2.yml  # Version complète (avec RabbitMQ + Monitoring + Simulator)
 └── requirements.txt
 ```
