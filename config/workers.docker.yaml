@@ -1,0 +1,54 @@
+workers:
+  - id: M1
+    url: http://worker-m1:8001
+    weight: 1
+    backend: simulated
+    model_name: null
+    max_concurrent: 10
+
+  - id: M2
+    url: http://worker-m2:8002
+    weight: 1
+    backend: simulated
+    model_name: null
+    max_concurrent: 10
+
+  - id: M3
+    url: http://worker-m3:8003
+    weight: 1
+    backend: simulated
+    model_name: null
+    max_concurrent: 10
+
+load_balancer:
+  timeout: 60
+  max_retries: 5
+  token_based_routing: true
+  streaming_enabled: true
+
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout: 30
+
+healthcheck:
+  interval: 5
+  timeout: 2
+
+queue:
+  enabled: true
+  max_size: 100
+  ttl: 300
+  max_retries: 5
+  retry_backoff_base: 2
+  retry_backoff_max: 60
+
+rate_limiting:
+  enabled: true
+  requests_per_minute: 60
+
+dead_letter:
+  enabled: true
+  max_size: 1000
+
+metrics:
+  enabled: true

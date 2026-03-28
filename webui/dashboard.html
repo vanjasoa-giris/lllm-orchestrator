@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Load Balancer - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.healthy {
+            background-color: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .status-indicator.unhealthy {
+            background-color: #ff3333;
+            box-shadow: 0 0 10px #ff3333;
+        }
+
+        .status-indicator.circuit-open {
+            background-color: #ffaa00;
+            box-shadow: 0 0 10px #ffaa00;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .worker-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .worker-card:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-5px);
+        }
+
+        .worker-card.unhealthy {
+            border-color: rgba(255, 51, 51, 0.5);
+            background: rgba(255, 51, 51, 0.1);
+        }
+
+        .worker-card.circuit-open {
+            border-color: rgba(255, 170, 0, 0.5);
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        .worker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .worker-name {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .worker-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .worker-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 3px solid #00ff00;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .stat-item.warning {
+            border-left-color: #ffaa00;
+        }
+
+        .stat-item.danger {
+            border-left-color: #ff3333;
+        }
+
+        .info-section {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+
+        .info-section h2 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .queue-info {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .queue-stat {
+            text-align: center;
+        }
+
+        .queue-stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .queue-stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .architecture-diagram {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        .connection-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .flow-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .flow-arrow {
+            font-size: 1.5em;
+            opacity: 0.7;
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-container h3 {
+            margin-bottom: 15px;
+        }
+
+        canvas {
+            max-height: 250px;
+        }
+
+        .connection-status {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(255, 51, 51, 0.1);
+            border-color: rgba(255, 51, 51, 0.3);
+        }
+
+        .connection-status.disconnected::before {
+            content: "❌ ";
+            color: #ff3333;
+        }
+
+        .connection-status::before {
+            content: "✓ ";
+            color: #00ff00;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 LLM Load Balancer Dashboard</h1>
+            <p>Real-time orchestration monitoring</p>
+        </header>
+
+        <!-- Connection Status -->
+        <div class="connection-status" id="connectionStatus">
+            Connecting...
+        </div>
+
+        <!-- Queue Info -->
+        <div class="info-section">
+            <h2>📊 System Status</h2>
+            <div class="queue-info">
+                <div class="queue-stat">
+                    <div class="queue-stat-value" id="queueSize">0</div>
+                    <div class="queue-stat-label">Requests in Queue</div>
+                </div>
+                <div class="queue-stat">
+                    <div class="queue-stat-value" id="totalConnections">0</div>
+                    <div class="queue-stat-label">Active Connections</div>
+                </div>
+                <div class="queue-stat">
+                    <div class="queue-stat-value" id="healthyWorkers">0</div>
+                    <div class="queue-stat-label">Healthy Workers</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Architecture Diagram -->
+        <div class="info-section">
+            <h2>🏗️ Architecture</h2>
+            <div class="architecture-diagram">
+                <div class="connection-flow">
+                    <div class="flow-item">Client</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-item">Orchestrator:8000</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-item">Workers</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-item">Response</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Worker Cards -->
+        <h2 style="margin-bottom: 20px;">👷 Workers Status</h2>
+        <div class="dashboard" id="workersContainer">
+            <!-- Dynamically populated -->
+        </div>
+
+        <!-- Charts -->
+        <h2 style="margin-bottom: 20px;">📈 Metrics</h2>
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>Latency by Worker (ms)</h3>
+                <canvas id="latencyChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Active Connections</h3>
+                <canvas id="connectionsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WS_URL = `ws://${window.location.hostname}:${window.location.port}/ws`;
+        let ws = null;
+        let latencyChart = null;
+        let connectionsChart = null;
+        const historyData = {
+            M1: { latencies: [], connections: [] },
+            M2: { latencies: [], connections: [] },
+            M3: { latencies: [], connections: [] }
+        };
+
+        function connectWebSocket() {
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('connectionStatus').textContent = 'Connected - Receiving live updates';
+                document.getElementById('connectionStatus').classList.remove('disconnected');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateDashboard(data);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                document.getElementById('connectionStatus').textContent = 'Connection error';
+                document.getElementById('connectionStatus').classList.add('disconnected');
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('connectionStatus').textContent = 'Disconnected - Reconnecting...';
+                document.getElementById('connectionStatus').classList.add('disconnected');
+                // Reconnect after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function updateDashboard(data) {
+            const container = document.getElementById('workersContainer');
+            let healthyCount = 0;
+            let totalConnections = 0;
+
+            container.innerHTML = '';
+
+            for (const [workerId, workerData] of Object.entries(data.workers)) {
+                if (workerData.status === 'healthy') healthyCount++;
+                totalConnections += workerData.connections;
+
+                const statusClass = workerData.status === 'healthy' 
+                    ? (workerData.circuit === 'closed' ? 'healthy' : 'circuit-open')
+                    : 'unhealthy';
+                
+                const card = document.createElement('div');
+                card.className = `worker-card ${statusClass === 'unhealthy' ? 'unhealthy' : statusClass === 'circuit-open' ? 'circuit-open' : ''}`;
+                
+                const circuitLabel = workerData.circuit === 'open' ? '⚠️ CIRCUIT OPEN' : 
+                                   workerData.circuit === 'half_open' ? '⏳ Half-Open' : 
+                                   '✓ Normal';
+
+                card.innerHTML = `
+                    <div class="worker-header">
+                        <div class="worker-name">${workerId}</div>
+                        <div class="worker-status">
+                            <span class="status-indicator ${statusClass}"></span>
+                            <span>${workerData.status}</span>
+                        </div>
+                    </div>
+                    <div class="worker-stats">
+                        <div class="stat-item ${workerData.connections > 5 ? 'warning' : ''}">
+                            <div class="stat-label">Connections</div>
+                            <div class="stat-value">${workerData.connections}</div>
+                        </div>
+                        <div class="stat-item ${workerData.avg_latency > 2 ? 'danger' : workerData.avg_latency > 1 ? 'warning' : ''}">
+                            <div class="stat-label">Avg Latency</div>
+                            <div class="stat-value">${(workerData.avg_latency * 1000).toFixed(0)}ms</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Circuit</div>
+                            <div class="stat-value" style="font-size: 0.9em;">${circuitLabel}</div>
+                        </div>
+                        <div class="stat-item ${workerData.consecutive_failures > 2 ? 'warning' : ''}">
+                            <div class="stat-label">Failures</div>
+                            <div class="stat-value">${workerData.consecutive_failures}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+
+                // Store history for charts
+                historyData[workerId].latencies.push(workerData.avg_latency * 1000);
+                historyData[workerId].connections.push(workerData.connections);
+
+                // Keep only last 20 data points
+                if (historyData[workerId].latencies.length > 20) {
+                    historyData[workerId].latencies.shift();
+                    historyData[workerId].connections.shift();
+                }
+            }
+
+            document.getElementById('queueSize').textContent = data.queue_size;
+            document.getElementById('totalConnections').textContent = totalConnections;
+            document.getElementById('healthyWorkers').textContent = healthyCount;
+
+            updateCharts();
+        }
+
+        function updateCharts() {
+            // Latency Chart
+            if (!latencyChart) {
+                const ctx = document.getElementById('latencyChart').getContext('2d');
+                latencyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: 20}, (_, i) => i),
+                        datasets: [
+                            {
+                                label: 'M1',
+                                data: historyData.M1.latencies,
+                                borderColor: '#00ff00',
+                                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                                tension: 0.3
+                            },
+                            {
+                                label: 'M2',
+                                data: historyData.M2.latencies,
+                                borderColor: '#00aaff',
+                                backgroundColor: 'rgba(0, 170, 255, 0.1)',
+                                tension: 0.3
+                            },
+                            {
+                                label: 'M3',
+                                data: historyData.M3.latencies,
+                                borderColor: '#ffaa00',
+                                backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { labels: { color: '#fff' } } },
+                        scales: {
+                            y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                            x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
+                        }
+                    }
+                });
+            } else {
+                latencyChart.data.datasets[0].data = historyData.M1.latencies;
+                latencyChart.data.datasets[1].data = historyData.M2.latencies;
+                latencyChart.data.datasets[2].data = historyData.M3.latencies;
+                latencyChart.update();
+            }
+
+            // Connections Chart
+            if (!connectionsChart) {
+                const ctx = document.getElementById('connectionsChart').getContext('2d');
+                connectionsChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['M1', 'M2', 'M3'],
+                        datasets: [{
+                            label: 'Active Connections',
+                            data: [
+                                historyData.M1.connections[historyData.M1.connections.length - 1] || 0,
+                                historyData.M2.connections[historyData.M2.connections.length - 1] || 0,
+                                historyData.M3.connections[historyData.M3.connections.length - 1] || 0
+                            ],
+                            backgroundColor: ['#00ff00', '#00aaff', '#ffaa00']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { labels: { color: '#fff' } } },
+                        scales: {
+                            y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                            x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
+                        }
+                    }
+                });
+            } else {
+                connectionsChart.data.datasets[0].data = [
+                    historyData.M1.connections[historyData.M1.connections.length - 1] || 0,
+                    historyData.M2.connections[historyData.M2.connections.length - 1] || 0,
+                    historyData.M3.connections[historyData.M3.connections.length - 1] || 0
+                ];
+                connectionsChart.update();
+            }
+        }
+
+        // Initialize
+        connectWebSocket();
+    </script>
+</body>
+</html>

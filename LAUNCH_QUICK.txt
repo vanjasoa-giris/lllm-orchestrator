@@ -1,0 +1,81 @@
+# ⚡ LANCER EN 3 ÉTAPES
+
+## Étape 1: Nettoie (si relance)
+```bash
+docker-compose -f docker-compose.v2.yml down
+docker volume prune -f
+```
+
+## Étape 2: Démarre
+```bash
+docker-compose -f docker-compose.v2.yml up -d
+sleep 15  # Attends les services
+```
+
+## Étape 3: Accède au Dashboard
+```
+http://localhost:8000
+```
+
+---
+
+## Vérifie que ça marche
+
+```bash
+# Vois les containers
+docker-compose -f docker-compose.v2.yml ps
+
+# Envoie une requête
+curl -X POST http://localhost:8000/infer \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "test", "max_tokens": 50}'
+
+# Si tu reçois {"worker": "M1", ...} → ✅ Ça marche!
+```
+
+---
+
+## Charger les données
+
+```bash
+# Option 1: Si tu as demo_load.py
+python demo_load.py
+
+# Option 2: Boucle manuelle
+for i in {1..10}; do
+  curl -X POST http://localhost:8000/infer \
+    -H "Content-Type: application/json" \
+    -d '{"prompt": "req '$i'", "max_tokens": 50}' -s
+  sleep 1
+done
+```
+
+---
+
+## Dashboards
+
+```
+WebUI (Real-time):     http://localhost:8000 ⭐
+Grafana (Professional): http://localhost:3000 (admin/admin)
+Prometheus (Metrics):   http://localhost:9090
+```
+
+---
+
+## Si tu vois "Connecting..." sur le WebUI
+
+Tu dois d'abord envoyer une requête pour que le WebSocket se connecte:
+
+```bash
+curl -X POST http://localhost:8000/infer \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "wake up", "max_tokens": 10}'
+```
+
+Puis rafraîchis le browser.
+
+---
+
+**Voilà! Tu devrais voir les données arriver en temps réel! 🚀**
+
+Pour plus de détails: `HOW_TO_LAUNCH.md`

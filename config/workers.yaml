@@ -1,0 +1,94 @@
+# Configuration Production-Ready pour LLM Load Balancer
+# =====================================================
+
+workers:
+  # Worker M1 - Instance locale (simulation)
+  - id: M1
+    url: http://localhost:8001
+    weight: 1
+    backend: simulated
+    model_name: null
+    max_concurrent: 10
+
+  # Worker M2 - Instance locale (simulation)
+  - id: M2
+    url: http://localhost:8002
+    weight: 1
+    backend: simulated
+    model_name: null
+    max_concurrent: 10
+
+  # Worker M3 - Instance locale (simulation)
+  - id: M3
+    url: http://localhost:8003
+    weight: 1
+    backend: simulated
+    model_name: null
+    max_concurrent: 10
+
+# =====================================================
+# CONFIGURATION OPENAI (décommenter pour utiliser)
+# =====================================================
+# workers:
+#   - id: OPENAI-1
+#     url: https://api.openai.com/v1
+#     weight: 2
+#     backend: openai
+#     api_key: sk-your-api-key
+#     model_name: gpt-4-turbo-preview
+#     max_concurrent: 50
+
+# =====================================================
+# CONFIGURATION vLLM (décommenter pour utiliser)
+# =====================================================
+# workers:
+#   - id: VLLM-1
+#     url: http://192.168.1.100:8000
+#     weight: 3
+#     backend: vllm
+#     model_name: meta-llama/Llama-2-70b-chat-hf
+#     max_concurrent: 20
+
+# =====================================================
+# CONFIGURATION HUGGINGFACE TRANSFORMERS
+# =====================================================
+# workers:
+#   - id: HF-1
+#     url: http://localhost:8004
+#     weight: 1
+#     backend: hf_transformers
+#     model_name: meta-llama/Llama-2-7b-hf
+#     max_concurrent: 5
+
+load_balancer:
+  timeout: 60
+  max_retries: 5
+  token_based_routing: true
+  streaming_enabled: true
+
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout: 30
+
+healthcheck:
+  interval: 5
+  timeout: 2
+
+queue:
+  enabled: true
+  max_size: 100
+  ttl: 300
+  max_retries: 5
+  retry_backoff_base: 2
+  retry_backoff_max: 60
+
+rate_limiting:
+  enabled: true
+  requests_per_minute: 60
+
+dead_letter:
+  enabled: true
+  max_size: 1000
+
+metrics:
+  enabled: true

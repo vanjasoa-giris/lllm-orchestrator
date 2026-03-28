@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY worker/ /app/worker/
+COPY worker_entrypoint.py /app/worker_entrypoint.py
+
+ENV WORKER_ID=M1
+ENV WORKER_PORT=8001
+ENV BACKEND=simulated
+
+EXPOSE 8001
+
+CMD ["python", "/app/worker_entrypoint.py"]

@@ -1,0 +1,68 @@
+# 🗑️ FICHIERS NON NÉCESSAIRES - LISTE RAPIDE
+
+## À SUPPRIMER (Bonus - Hors Planning)
+
+### Documentations (127 KB)
+```
+rm ARCHITECTURE_VISUAL.md
+rm CHANGELOG.md
+rm DEMO_CHECKLIST.md
+rm FINAL_SUMMARY.txt
+rm INDEX.md
+rm PLANNING_VERIFICATION.md
+rm PLAN_CHECK_SUMMARY.md
+rm QUICK_START.md
+rm SUMMARY.md
+rm TOOLS_COMPARISON.md
+rm VISUALIZATION_GUIDE.md
+```
+
+### Code Bonus (40 KB)
+```
+rm demo_load.py
+rm docker-compose.v2.yml
+rm orchestrator/main_v2.py
+rm -rf webui/
+rm config/prometheus.yml
+rm -rf config/grafana/
+```
+
+### Scripts Helpers
+```
+rm start.sh
+rm start.bat
+```
+
+---
+
+## À GARDER (Core du Planning)
+
+```
+✅ orchestrator/main.py
+✅ worker/main.py
+✅ docker-compose.yml
+✅ Dockerfile.orchestrator
+✅ Dockerfile.worker
+✅ config/workers.yaml
+✅ requirements.txt
+✅ test_architecture.py
+✅ README.md
+✅ tasks.md
+✅ orchestrator_entrypoint.py
+✅ worker_entrypoint.py
+✅ tests/
+✅ docs/
+```
+
+---
+
+## Total à Supprimer
+
+- **Fichiers**: 15 fichiers
+- **Répertoires**: webui/ + config/grafana/
+- **Espace**: ~170 KB
+
+**Raison**: Ces fichiers sont des bonus (Prometheus + Grafana + WebUI + Docs) 
+= NON dans ton planning core
+
+**Détails**: Voir `FILES_TO_DELETE.md`

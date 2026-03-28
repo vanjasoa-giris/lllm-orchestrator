@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'orchestrator'
+    static_configs:
+      - targets: ['orchestrator:8001']
+
+  - job_name: 'worker-m1'
+    static_configs:
+      - targets: ['worker-m1:8001']
+
+  - job_name: 'worker-m2'
+    static_configs:
+      - targets: ['worker-m2:8001']
+
+  - job_name: 'worker-m3'
+    static_configs:
+      - targets: ['worker-m3:8001']

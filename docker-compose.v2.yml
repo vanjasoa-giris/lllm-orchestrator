@@ -1,0 +1,153 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: llm-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+  worker-m1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: llm-worker-m1
+    ports:
+      - "8001:8001"
+    environment:
+      - WORKER_ID=M1
+      - WORKER_PORT=8001
+      - BACKEND=simulated
+    networks:
+      - llm-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  worker-m2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: llm-worker-m2
+    ports:
+      - "8002:8002"
+    environment:
+      - WORKER_ID=M2
+      - WORKER_PORT=8002
+      - BACKEND=simulated
+    networks:
+      - llm-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  worker-m3:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: llm-worker-m3
+    ports:
+      - "8003:8003"
+    environment:
+      - WORKER_ID=M3
+      - WORKER_PORT=8003
+      - BACKEND=simulated
+    networks:
+      - llm-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    container_name: llm-orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      - CONFIG_PATH=/app/config/workers.docker.yaml
+      - PORT=8000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./config:/app/config:ro
+      - ./webui:/app/webui:ro
+    depends_on:
+      - worker-m1
+      - worker-m2
+      - worker-m3
+      - rabbitmq
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: llm-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: llm-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+  load-simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.simulator
+    container_name: llm-load-simulator
+    environment:
+      - ORCHESTRATOR_URL=http://orchestrator:8000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - orchestrator
+      - rabbitmq
+    networks:
+      - llm-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  rabbitmq-data:
+
+networks:
+  llm-network:
+    driver: bridge

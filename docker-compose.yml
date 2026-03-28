@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Worker M1 - LLM Instance
+  worker-m1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: llm-worker-m1
+    ports:
+      - "8001:8001"
+    environment:
+      - WORKER_ID=M1
+      - WORKER_PORT=8001
+      - BACKEND=simulated
+    networks:
+      - llm-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # Worker M2 - LLM Instance
+  worker-m2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: llm-worker-m2
+    ports:
+      - "8002:8002"
+    environment:
+      - WORKER_ID=M2
+      - WORKER_PORT=8002
+      - BACKEND=simulated
+    networks:
+      - llm-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # Worker M3 - LLM Instance
+  worker-m3:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: llm-worker-m3
+    ports:
+      - "8003:8003"
+    environment:
+      - WORKER_ID=M3
+      - WORKER_PORT=8003
+      - BACKEND=simulated
+    networks:
+      - llm-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # Orchestrator - Load Balancer
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    container_name: llm-orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      - CONFIG_PATH=/app/config/workers.docker.yaml
+      - PORT=8000
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - worker-m1
+      - worker-m2
+      - worker-m3
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+networks:
+  llm-network:
+    driver: bridge
